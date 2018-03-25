@@ -24,7 +24,7 @@ class TestHandler:
         assert handler.code_has_changed
 
     def test_event_type(self, handler):
-        assert handler.event_type in ['PushEvent', 'PullRequestEvent']
+        assert handler.event_type in ['push', 'pull_request']
 
     def test_archive_url(self, handler):
         assert handler.archive_url == (

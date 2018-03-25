@@ -17,8 +17,8 @@ __all__ = ('Handler', 'logger')
 logger = logging.getLogger('lintipy')
 
 
-PUSH_EVENT = 'PushEvent'
-PULL_REQUEST_EVENT = 'PullRequestEvent'
+PUSH_EVENT = 'push'
+PULL_REQUEST_EVENT = 'pull_request'
 
 
 class Handler:
