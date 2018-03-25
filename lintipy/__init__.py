@@ -24,9 +24,6 @@ PULL_REQUEST_EVENT = 'PullRequestEvent'
 class Handler:
     """Handle GitHub web hooks via SNS message."""
 
-    ARCHIVE_URL = 'https://api.github.com/repos/{owner}/{repo}/tarball/{sha}'
-    STATUS_URL = 'https://api.github.com/repos/{owner}/{repo}/statuses/{sha}'
-
     def __init__(self, label: str, cmd: str, *cmd_args: str,
                  integration_id: str = None, bucket: str = None,
                  region: str = None, pem: str = None):
@@ -36,6 +33,7 @@ class Handler:
         self._token = None
         self._hook = None
         self._s3 = None
+        self._session = None
         self.event = None
         self.integration_id = integration_id or os.environ.get('INTEGRATION_ID')
         self.bucket = bucket or os.environ.get('BUCKET', 'lambdalint')
@@ -51,13 +49,11 @@ class Handler:
         if not self.code_has_changed:
             return  # Do not execute linter.
 
-        status_url = self.STATUS_URL.format(owner=self.owner, repo=self.repo, sha=self.sha)
-        headers = {'Authorization': 'token %s' % self.token}
         data = {
             "state": "pending",
             "context": self.label,
         }
-        requests.post(status_url, json=data, headers=headers).raise_for_status()
+        self.session.post(self.statuses_url, json=data).raise_for_status()
         code_path = self.download_code()
         code, data["target_url"] = self.run_process(code_path)
         logger.info('linter exited with status code %s' % code)
@@ -73,7 +69,7 @@ class Handler:
                 "description": "%s failed!" % self.cmd,
             })
         logger.info('setting final status')
-        requests.post(status_url, json=data, headers=headers).raise_for_status()
+        self.session.post(self.statuses_url, json=data).raise_for_status()
 
     @property
     def event_type(self):
@@ -92,12 +88,19 @@ class Handler:
         return self._hook
 
     @property
-    def owner(self):
-        return self.hook['repository']['owner']['login']
+    def full_name(self):
+        return self.hook['repository']['full_name']
 
     @property
-    def repo(self):
-        return self.hook['repository']['name']
+    def statuses_url(self):
+        return self.hook['repository']['statuses_url'].format(sha=self.sha)
+
+    @property
+    def archive_url(self):
+        return self.hook['repository']['archive_url'].format(**{
+            'archive_format': 'tarball',
+            '/ref': '/%s' % self.sha,
+        })
 
     @property
     def installation_id(self):
@@ -147,6 +150,15 @@ class Handler:
             self._token = res.json()['token']
         return self._token
 
+    @property
+    def session(self):
+        if not self._session:
+            self._session = requests.Session()
+            self._session.headers.update({
+                'Authorization': 'token %s' % self.token
+            })
+        return self._session
+
     def get_env(self):
         """
         Return environment but add the file dir to the ``PYTHONPATH``.
@@ -179,7 +191,7 @@ class Handler:
         process.wait()
         log = process.stdout.read()
 
-        key = os.path.join(self.cmd, self.owner, self.repo, "%s.log" % self.sha)
+        key = os.path.join(self.cmd, self.full_name, "%s.log" % self.sha)
         self.s3.put_object(
             ACL='public-read',
             Bucket=self.bucket,
@@ -194,11 +206,7 @@ class Handler:
 
     def download_code(self):
         """Download code to local filesystem storage."""
-        archive_url = self.ARCHIVE_URL.format(owner=self.owner, repo=self.repo, sha=self.sha)
-        headers = {
-            'Authorization': 'token %s' % self.token
-        }
-        response = requests.get(archive_url, headers=headers)
+        response = self.session.get(self.archive_url)
         response.raise_for_status()
         with BytesIO() as bs:
             bs.write(response.content)
