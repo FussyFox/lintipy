@@ -1,0 +1,3 @@
+-e .
+boto3
+pytest

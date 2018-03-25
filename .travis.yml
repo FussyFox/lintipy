@@ -1,0 +1,22 @@
+language: python
+sudo: false
+python:
+- '3.6'
+cache:
+- pip
+install:
+- pip install -U codecov
+- pip install -r requirements-dev.txt
+script:
+- coverage run --source lintipy -m pytest
+on_success:
+- codecov
+deploy:
+  provider: pypi
+  user: codingjoe
+  password:
+    secure: CnXlSfSTKIaURjoIKodPUJPXbw5u7d3/tlX69rosqGc8z+/w50lzaAv+BMn+gRxY1cAXe5pOzCsph/PBA8Ykkxhj1XNRzOAt5J5L4wR9JqDZw6rsoeczEWdyEbyn49h1NLMoXqCNFmR/FJ7baOV5Ne8g4yDlsrXMX6gbxKKn+bn/yR1Ij8Du4Wkq6opjBfAClRs4Gf332ExSfu3e+bnJGMRFwWiztY4ZSY4LAgMes/N255VIQKebaNMgSGAOEosH8LiBJMf+aItQ5ZU5/MqtyeLeWQTqmVcyz6ExE5IYKKq5MnCwP426ipViwmcH+fwOPlEfKEragNlehMLrziLjnkGm6gLVo183uD2HkhgafEf4wV1Kb5T4ScZNGVXwNTQXdu0WCiAWQPb6UzKXA75v4mVqgaKsHaZZAfiD5wtNzaMoKvqpesr54xAK7vK07UPqR9KS+nkOUJTESadx2jrwzsPlHPKzHkSMO8siLNYElC1xTDIPTIcSkJrCtCaB/Q6JB1bpagYb9T2MW8BYVT8JkdApi2f0wijv1bxB7gc5grujJLlqSHzOOscZwbTn1rjIsCyFhiZs4JFd+Euk3FT6rHRN7Nm9S5BTf+MLRbPlCATJYRKVoYgbObkhs9bqoN8FACfRVfHQOUQ2QkjiHmGBchbfhaIGgyvvkDlp+xbJrQg=
+  on:
+    tags: true
+    distributions: sdist
+    repo: lambda-lint/lintipy
