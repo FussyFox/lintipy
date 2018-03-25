@@ -17,12 +17,12 @@ def sns():
 
 def push_event():
     with open(BASE_DIR / 'fixtures' / 'pushEvent.json') as f:
-        return 'PushEvent', f.read()
+        return 'push', f.read()
 
 
 def pull_request_event():
     with open(BASE_DIR / 'fixtures' / 'pullRequestEvent.json') as f:
-        return 'PullRequestEvent', f.read()
+        return 'pull_request', f.read()
 
 
 @pytest.fixture(params=[push_event, pull_request_event])
