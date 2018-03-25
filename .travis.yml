@@ -9,7 +9,7 @@ install:
 - pip install -r requirements-dev.txt
 script:
 - coverage run --source lintipy -m pytest
-on_success:
+after_success:
 - codecov
 deploy:
   provider: pypi
