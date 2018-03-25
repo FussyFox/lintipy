@@ -28,7 +28,8 @@ class Handler:
     STATUS_URL = 'https://api.github.com/repos/{owner}/{repo}/statuses/{sha}'
 
     def __init__(self, label: str, cmd: str, *cmd_args: str,
-                 integration_id: str = None, bucket: str = None, region: str = None, pem: str = None):
+                 integration_id: str = None, bucket: str = None,
+                 region: str = None, pem: str = None):
         self.label = label
         self.cmd = cmd
         self.cmd_args = cmd_args
