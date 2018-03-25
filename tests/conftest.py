@@ -23,4 +23,3 @@ def push_event():
 def pull_request_event():
     with open(BASE_DIR / 'fixtures' / 'pullRequestEvent.json') as f:
         return json.load(f)
-
