@@ -91,6 +91,7 @@ class Handler:
     def hook(self):
         if self._hook is None:
             self._hook = json.loads(self.event['Records'][0]['Sns']['Message'])
+        logger.debug(self._hook)
         return self._hook
 
     @property
