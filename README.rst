@@ -6,7 +6,7 @@ lintipy
 Usage
 -----
 
-.. code-block::python
+.. code-block:: python
 
     from lintipy import Handler
 
