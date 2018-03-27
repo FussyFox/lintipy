@@ -23,6 +23,9 @@ PULL_REQUEST_EVENT = 'pull_request'
 
 class Handler:
     """Handle GitHub web hooks via SNS message."""
+    handle_pull_request_actions = [
+        'opened', 'edited', 'reopened', 'synchronized',
+    ]
 
     def __init__(self, label: str, cmd: str, *cmd_args: str,
                  integration_id: str = None, bucket: str = None,
@@ -114,9 +117,7 @@ class Handler:
         if self.event_type == PUSH_EVENT:
             return True
         elif self.event_type == PULL_REQUEST_EVENT:
-            return self.hook['action'] in [
-                "opened", "edited", "reopened"
-            ]
+            return self.hook['action'] in self.handle_pull_request_actions
 
     @property
     def sha(self):
