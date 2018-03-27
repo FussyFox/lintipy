@@ -24,7 +24,7 @@ PULL_REQUEST_EVENT = 'pull_request'
 class Handler:
     """Handle GitHub web hooks via SNS message."""
     handle_pull_request_actions = [
-        'opened', 'edited', 'reopened', 'synchronized',
+        'opened', 'edited', 'reopened', 'synchronize',
     ]
 
     def __init__(self, label: str, cmd: str, *cmd_args: str,
