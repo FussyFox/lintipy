@@ -23,6 +23,7 @@ PULL_REQUEST_EVENT = 'pull_request'
 
 class Handler:
     """Handle GitHub web hooks via SNS message."""
+
     handle_pull_request_actions = [
         'opened', 'edited', 'reopened', 'synchronize',
     ]
