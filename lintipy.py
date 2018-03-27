@@ -45,8 +45,11 @@ class Handler:
     def __call__(self, event, context):
         """AWS Lambda function handler."""
         self.event = event
+        logger.info("Received %s event", self.event_type)
+        logger.debug(event)
 
         if not self.code_has_changed:
+            logger.info("Code has not changed, ignore event.")
             return  # Do not execute linter.
 
         data = {
@@ -145,6 +148,7 @@ class Handler:
                     'https://api.github.com/installations/'
                     '%s/access_tokens' % self.installation_id
             )
+            logger.info('requesting new token')
             res = requests.post(url, headers=headers)
             res.raise_for_status()
             self._token = res.json()['token']
@@ -183,6 +187,7 @@ class Handler:
             tuple[int, str]: Tuple containing exit code and URI to log file.
 
         """
+        logger.info('Running: %s %s', self.cmd, ' '.join(self.cmd_args))
         process = Popen(
             ('python', '-m', self.cmd) + self.cmd_args,
             stdout=PIPE, stderr=STDOUT,
@@ -190,7 +195,9 @@ class Handler:
         )
         process.wait()
         log = process.stdout.read()
-
+        logger.debug(log)
+        logger.debug('exit %s', process.returncode)
+        logger.info('Saving log to S3')
         key = os.path.join(self.cmd, self.full_name, "%s.log" % self.sha)
         self.s3.put_object(
             ACL='public-read',
@@ -206,6 +213,7 @@ class Handler:
 
     def download_code(self):
         """Download code to local filesystem storage."""
+        logger.info('Downloading: %s', self.archive_url)
         response = self.session.get(self.archive_url)
         response.raise_for_status()
         with BytesIO() as bs:
