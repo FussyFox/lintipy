@@ -91,7 +91,7 @@ class Handler:
     def hook(self):
         if self._hook is None:
             self._hook = json.loads(self.event['Records'][0]['Sns']['Message'])
-        logger.debug(self._hook)
+            logger.debug(self._hook)
         return self._hook
 
     @property
@@ -122,10 +122,11 @@ class Handler:
 
     @property
     def sha(self):
-        if self.event_type == PUSH_EVENT:
-            return self.hook['head_commit']['id']
-        elif self.event_type == PULL_REQUEST_EVENT:
+        try:
             return self.hook['pull_request']['head']['sha']
+        except KeyError:
+            # push on branch without pull-request
+            return self.hook['head_commit']['id']
 
     @property
     def token(self):
