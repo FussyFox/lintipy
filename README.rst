@@ -12,3 +12,8 @@ Usage
 
     def handle(*args, **kwargs):
         return Handler('PEP8', 'pycodestyle', '.')(*args, **kwargs)
+
+See also:
+---------
+
+This package is used on [Lambda Lint](https://lambdalint.github.io)
