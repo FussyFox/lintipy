@@ -10,4 +10,5 @@ Usage
 
     from lintipy import Handler
 
-    handle = Handler('PEP8', 'pycodestyle', '.')
+    def handle(*args, **kwargs):
+        return Handler('PEP8', 'pycodestyle', '.')(*args, **kwargs)
