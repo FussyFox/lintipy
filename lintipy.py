@@ -6,7 +6,7 @@ import tarfile
 import tempfile
 import time
 from io import BytesIO
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE, STDOUT  # nosec
 
 import boto3
 import jwt
@@ -223,7 +223,7 @@ class Handler:
         with BytesIO() as bs:
             bs.write(response.content)
             bs.seek(0)
-            path = tempfile.mktemp()
+            path = tempfile.mkdtemp()
             with tarfile.open(fileobj=bs, mode='r:gz') as fs:
                 fs.extractall(path)
             folder = os.listdir(path)[0]
