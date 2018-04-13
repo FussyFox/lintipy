@@ -51,7 +51,7 @@ class TestHandler:
         assert handler.download_code()
 
     @httpretty.activate
-    def test_call(self, handler):
+    def test_call(self, handler, caplog):
         httpretty.register_uri(
             httpretty.POST, handler.statuses_url,
             data='',
@@ -61,7 +61,9 @@ class TestHandler:
         handler._session = requests.Session()
         handler._s3 = Mock()
         handler.download_code = lambda: '.'
-        handler(handler.event, {})
+        with caplog.at_level(logging.INFO, logger='lintipy'):
+            handler(handler.event, {})
+        assert "linter exited with status code 1 in " in caplog.text
 
     def test_download_code(self, handler):
         handler._session = requests.Session()
