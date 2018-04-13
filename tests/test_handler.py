@@ -1,6 +1,8 @@
+import logging
 from unittest.mock import Mock
 
 import httpretty
+import pytest
 from botocore.vendored import requests
 
 from lintipy import Handler
@@ -64,3 +66,32 @@ class TestHandler:
     def test_download_code(self, handler):
         handler._session = requests.Session()
         assert handler.download_code()
+
+    @httpretty.activate
+    def test_set_status(self, handler, caplog):
+        httpretty.register_uri(
+            httpretty.POST, handler.statuses_url,
+            data='',
+            status=201,
+            content_type='application/json',
+        )
+
+        handler._session = requests.Session()
+        with caplog.at_level(logging.INFO, logger='lintipy'):
+            handler.set_status('success', 'some description')
+            assert "success: some description" in caplog.text
+        handler.set_status('success', 'some description',
+                           target_url='https://example.com')
+
+        with pytest.raises(ValueError) as e:
+            handler.set_status('not_valid', 'some description')
+        assert "'not_valid' is not a valid state" in str(e)
+
+        httpretty.register_uri(
+            httpretty.POST, handler.statuses_url,
+            data='',
+            status=400,
+            content_type='application/json',
+        )
+        with pytest.raises(requests.HTTPError):
+            handler.set_status('success', 'some description')
