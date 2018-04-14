@@ -228,7 +228,7 @@ class Handler:
         logger.debug(log)
         logger.debug('exit %s', process.returncode)
         logger.info('Saving log to S3')
-        key = os.path.join(self.cmd, self.full_name, "%s.log" % self.sha)
+        key = os.path.join(self.label, self.full_name, "%s.log" % self.sha)
         self.s3.put_object(
             ACL='public-read',
             Bucket=self.bucket,
