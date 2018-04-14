@@ -27,6 +27,11 @@ PENDING = 'pending'
 SUCCESS = 'success'
 
 STATUS_STATES = {ERROR, FAILURE, PENDING, SUCCESS}
+"""
+Accepted states for GitHub's status API.
+
+.. seealso:: https://developer.github.com/v3/repos/statuses/#parameters
+"""
 
 
 class Handler:
@@ -71,9 +76,9 @@ class Handler:
         logger.info('linter exited with status code %s' % code)
 
         if code == 0:
-            self.set_status(SUCCESS, "%s succeeded!" % self.cmd)
+            self.set_status(SUCCESS, "%s succeeded!" % self.cmd, target_url)
         else:
-            self.set_status(FAILURE, "%s failed!" % self.cmd)
+            self.set_status(FAILURE, "%s failed!" % self.cmd, target_url)
 
     @property
     def event_type(self):
@@ -187,9 +192,8 @@ class Handler:
             'context': self.label,
             'state': state,
             'description': description,
+            'target_url': target_url,
         }
-        if target_url:
-            data['target_url'] = target_url
         logger.info("%s: %s", state, description)
         self.session.post(self.statuses_url, json=data).raise_for_status()
 
