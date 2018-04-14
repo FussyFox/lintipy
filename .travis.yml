@@ -19,4 +19,4 @@ deploy:
   on:
     tags: true
     distributions: sdist
-    repo: lambda-lint/lintipy
+    repo: LambdaLint/lintipy
