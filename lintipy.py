@@ -10,6 +10,8 @@ from io import BytesIO
 from subprocess import Popen, PIPE, STDOUT  # nosec
 from urllib.parse import urlencode
 
+import random
+
 import boto3
 import jwt
 from botocore.vendored import requests
