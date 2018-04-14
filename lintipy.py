@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import resource
 import tarfile
 import tempfile
 import time
@@ -73,13 +74,15 @@ class Handler:
         self.set_status(PENDING, "Downloading code...")
         code_path = self.download_code()
         self.set_status(PENDING, "Running linter...")
-        code, target_url = self.run_process(code_path)
-        logger.info('linter exited with status code %s' % code)
+        ru_time, code, target_url = self.run_process(code_path)
 
         if code == 0:
-            self.set_status(SUCCESS, "%s succeeded!" % self.cmd, self.get_log_url())
+            self.set_status(SUCCESS,
+                            "%s succeeded in %ss" % (self.cmd, ru_time),
+                            self.get_log_url())
         else:
-            self.set_status(FAILURE, "%s failed!" % self.cmd, self.get_log_url())
+            self.set_status(FAILURE, "%s failed in %ss" % (self.cmd, ru_time),
+                            self.get_log_url())
 
     @property
     def event_type(self):
@@ -220,6 +223,7 @@ class Handler:
             cwd=code_path, env=self.get_env(),
         )
         process.wait()
+        info = resource.getrusage(resource.RUSAGE_CHILDREN)
         log = process.stdout.read()
         logger.debug(log)
         logger.debug('exit %s', process.returncode)
@@ -232,7 +236,11 @@ class Handler:
             Body=log,
             ContentType='text/plain'
         )
+        logger.info(
+            'linter exited with status code %s in %ss' % (process.returncode, info.ru_utime)
+        )
         return (
+            info.ru_utime,
             process.returncode,
             "https://{0}.s3.amazonaws.com/{1}".format(self.bucket, key),
         )
