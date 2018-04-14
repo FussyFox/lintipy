@@ -21,6 +21,19 @@ PUSH_EVENT = 'push'
 PULL_REQUEST_EVENT = 'pull_request'
 
 
+ERROR = 'error'
+FAILURE = 'failure'
+PENDING = 'pending'
+SUCCESS = 'success'
+
+STATUS_STATES = {ERROR, FAILURE, PENDING, SUCCESS}
+"""
+Accepted states for GitHub's status API.
+
+.. seealso:: https://developer.github.com/v3/repos/statuses/#parameters
+"""
+
+
 class Handler:
     """Handle GitHub web hooks via SNS message."""
 
@@ -56,27 +69,16 @@ class Handler:
             logger.info("Code has not changed, ignore event.")
             return  # Do not execute linter.
 
-        data = {
-            "state": "pending",
-            "context": self.label,
-        }
-        self.session.post(self.statuses_url, json=data).raise_for_status()
+        self.set_status(PENDING, "Downloading code...")
         code_path = self.download_code()
-        code, data["target_url"] = self.run_process(code_path)
+        self.set_status(PENDING, "Running linter...")
+        code, target_url = self.run_process(code_path)
         logger.info('linter exited with status code %s' % code)
 
         if code == 0:
-            data.update({
-                "state": "success",
-                "description": "%s succeeded!" % self.cmd,
-            })
+            self.set_status(SUCCESS, "%s succeeded!" % self.cmd, target_url)
         else:
-            data.update({
-                "state": "failure",
-                "description": "%s failed!" % self.cmd,
-            })
-        logger.info('setting final status')
-        self.session.post(self.statuses_url, json=data).raise_for_status()
+            self.set_status(FAILURE, "%s failed!" % self.cmd, target_url)
 
     @property
     def event_type(self):
@@ -182,6 +184,18 @@ class Handler:
             env.get(PYTHONPATH, ''),
         ])
         return env
+
+    def set_status(self, state, description, target_url=None):
+        if state not in STATUS_STATES:
+            raise ValueError("%r is not a valid state" % state)
+        data = {
+            'context': self.label,
+            'state': state,
+            'description': description,
+            'target_url': target_url,
+        }
+        logger.info("%s: %s", state, description)
+        self.session.post(self.statuses_url, json=data).raise_for_status()
 
     def run_process(self, code_path):
         """
