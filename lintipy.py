@@ -7,6 +7,7 @@ import tempfile
 import time
 from io import BytesIO
 from subprocess import Popen, PIPE, STDOUT  # nosec
+from urllib.parse import urlencode
 
 import boto3
 import jwt
@@ -76,9 +77,9 @@ class Handler:
         logger.info('linter exited with status code %s' % code)
 
         if code == 0:
-            self.set_status(SUCCESS, "%s succeeded!" % self.cmd, target_url)
+            self.set_status(SUCCESS, "%s succeeded!" % self.cmd, self.get_log_url())
         else:
-            self.set_status(FAILURE, "%s failed!" % self.cmd, target_url)
+            self.set_status(FAILURE, "%s failed!" % self.cmd, self.get_log_url())
 
     @property
     def event_type(self):
@@ -130,6 +131,13 @@ class Handler:
         except KeyError:
             # push on branch without pull-request
             return self.hook['head_commit']['id']
+
+    def get_log_url(self):
+        return "https://lambdalint.github.io/gh/?%s" % urlencode({
+            'app': self.label,
+            'repo': self.full_name,
+            'ref': self.sha,
+        })
 
     @property
     def token(self):

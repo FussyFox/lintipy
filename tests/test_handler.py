@@ -95,3 +95,10 @@ class TestHandler:
         )
         with pytest.raises(requests.HTTPError):
             handler.set_status('success', 'some description')
+
+    def test_get_log_url(self, handler):
+        assert handler.get_log_url() == (
+            'https://lambdalint.github.io/gh/?'
+            'app=some+linter&repo=baxterthehacker%2Fpublic-repo'
+            '&ref=0d1a26e67d8f5eaf1f6ba5c57fc3c7d91ac0fd1c'
+        )
