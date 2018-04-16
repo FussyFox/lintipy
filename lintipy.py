@@ -3,11 +3,11 @@ import json
 import logging
 import os
 import resource
+import subprocess  # nosec
 import tarfile
 import tempfile
 import time
 from io import BytesIO
-from subprocess import Popen, PIPE, STDOUT  # nosec
 from urllib.parse import urlencode
 
 import boto3
@@ -45,7 +45,7 @@ class Handler:
 
     def __init__(self, label: str, cmd: str, *cmd_args: str,
                  integration_id: str = None, bucket: str = None,
-                 region: str = None, pem: str = None):
+                 region: str = None, pem: str = None, cmd_timeout=200, download_timeout=30):
         self.label = label
         self.cmd = cmd
         self.cmd_args = cmd_args
@@ -57,6 +57,8 @@ class Handler:
         self.integration_id = integration_id or os.environ.get('INTEGRATION_ID')
         self.bucket = bucket or os.environ.get('BUCKET', 'lambdalint')
         self.region = region or os.environ.get('REGION', 'eu-west-1')
+        self.cmd_timeout = cmd_timeout
+        self.download_timeout = download_timeout
 
         pem = pem or os.environ.get('PEM', '')
         self.pem = '\n'.join(pem.split('\\n'))
@@ -217,44 +219,56 @@ class Handler:
 
         """
         logger.info('Running: %s %s', self.cmd, ' '.join(self.cmd_args))
-        process = Popen(
-            ('python', '-m', self.cmd) + self.cmd_args,
-            stdout=PIPE, stderr=STDOUT,
-            cwd=code_path, env=self.get_env(),
-        )
-        process.wait()
-        info = resource.getrusage(resource.RUSAGE_CHILDREN)
-        log = process.stdout.read()
-        logger.debug(log)
-        logger.debug('exit %s', process.returncode)
-        logger.info('Saving log to S3')
-        key = os.path.join(self.label, self.full_name, "%s.log" % self.sha)
-        self.s3.put_object(
-            ACL='public-read',
-            Bucket=self.bucket,
-            Key=key,
-            Body=log,
-            ContentType='text/plain'
-        )
-        logger.info(
-            'linter exited with status code %s in %ss' % (process.returncode, info.ru_utime)
-        )
-        return (
-            info.ru_utime,
-            process.returncode,
-            "https://{0}.s3.amazonaws.com/{1}".format(self.bucket, key),
-        )
+        try:
+            process = subprocess.run(
+                ('python', '-m', self.cmd) + self.cmd_args,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                cwd=code_path, env=self.get_env(),
+                timeout=self.cmd_timeout,
+            )
+        except subprocess.TimeoutExpired:
+            self.set_status(ERROR, 'Command timed out after %ss' % self.cmd_timeout,
+                            'https://lambdalint.github.io/#faq')
+            raise
+        else:
+            info = resource.getrusage(resource.RUSAGE_CHILDREN)
+            log = process.stdout
+            logger.debug(log)
+            logger.debug('exit %s', process.returncode)
+            logger.info('Saving log to S3')
+            key = os.path.join(self.label, self.full_name, "%s.log" % self.sha)
+            self.s3.put_object(
+                ACL='public-read',
+                Bucket=self.bucket,
+                Key=key,
+                Body=log,
+                ContentType='text/plain'
+            )
+            logger.info(
+                'linter exited with status code %s in %ss' % (process.returncode, info.ru_utime)
+            )
+            return (
+                info.ru_utime,
+                process.returncode,
+                "https://{0}.s3.amazonaws.com/{1}".format(self.bucket, key),
+            )
 
     def download_code(self):
         """Download code to local filesystem storage."""
         logger.info('Downloading: %s', self.archive_url)
-        response = self.session.get(self.archive_url)
-        response.raise_for_status()
-        with BytesIO() as bs:
-            bs.write(response.content)
-            bs.seek(0)
-            path = tempfile.mkdtemp()
-            with tarfile.open(fileobj=bs, mode='r:gz') as fs:
-                fs.extractall(path)
-            folder = os.listdir(path)[0]
-            return os.path.join(path, folder)
+        try:
+            response = self.session.get(self.archive_url, timeout=30)
+        except requests.Timeout:
+            self.set_status(ERROR, 'Downloading code timed out after %ss' % self.download_timeout,
+                            'https://lambdalint.github.io/#faq')
+            raise
+        else:
+            response.raise_for_status()
+            with BytesIO() as bs:
+                bs.write(response.content)
+                bs.seek(0)
+                path = tempfile.mkdtemp()
+                with tarfile.open(fileobj=bs, mode='r:gz') as fs:
+                    fs.extractall(path)
+                folder = os.listdir(path)[0]
+                return os.path.join(path, folder)

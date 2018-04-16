@@ -27,7 +27,7 @@ def pull_request_event():
 
 @pytest.fixture(params=[push_event, pull_request_event])
 def handler(request, sns):
-    hnd = Handler('some linter', 'echo', '1', '2', '3')
+    hnd = Handler('zen of python', 'this', '1', '2', '3')
     subject, message = request.param()
     sns['Records'][0]['Sns']['Subject'] = subject
     sns['Records'][0]['Sns']['Message'] = message
