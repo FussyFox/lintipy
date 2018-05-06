@@ -43,6 +43,8 @@ class Handler:
         'opened', 'edited', 'reopened', 'synchronize',
     ]
 
+    FAQ_URL = 'https://lambdalint.github.io/#faq'
+
     def __init__(self, label: str, cmd: str, *cmd_args: str,
                  integration_id: str = None, bucket: str = None,
                  region: str = None, pem: str = None, cmd_timeout=200, download_timeout=30):
@@ -227,8 +229,7 @@ class Handler:
                 timeout=self.cmd_timeout,
             )
         except subprocess.TimeoutExpired:
-            self.set_status(ERROR, 'Command timed out after %ss' % self.cmd_timeout,
-                            'https://lambdalint.github.io/#faq')
+            self.set_status(ERROR, 'Command timed out after %ss' % self.cmd_timeout, self.FAQ_URL)
             raise
         else:
             info = resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -257,10 +258,10 @@ class Handler:
         """Download code to local filesystem storage."""
         logger.info('Downloading: %s', self.archive_url)
         try:
-            response = self.session.get(self.archive_url, timeout=30)
+            response = self.session.get(self.archive_url, timeout=self.download_timeout)
         except requests.Timeout:
             self.set_status(ERROR, 'Downloading code timed out after %ss' % self.download_timeout,
-                            'https://lambdalint.github.io/#faq')
+                            self.FAQ_URL)
             raise
         else:
             response.raise_for_status()
