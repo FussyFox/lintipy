@@ -158,7 +158,8 @@ class Handler:
         if not self._session:
             self._session = requests.Session()
             self._session.headers.update({
-                'Authorization': 'token %s' % self.token
+                'Authorization': 'token %s' % self.token,
+                'Accept': 'application/vnd.github.antiope-preview+json',
             })
         return self._session
 
