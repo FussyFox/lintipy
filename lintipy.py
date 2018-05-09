@@ -244,7 +244,7 @@ class Handler:
             'head_branch': self.head_branch,
             'head_sha': self.sha,
             'status': IN_PROGRESS,
-            'started_at': datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ'),
+            'started_at': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
             'output': {
                 'title': self.label,
                 'summary': summary,
@@ -267,6 +267,6 @@ class Handler:
         if conclusion:
             data['conclusion'] = conclusion
         if status == COMPLETED:
-            data['completed_at'] = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')
+            data['completed_at'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
         response = self.session.patch(self.check_run_url, json=data)
         response.raise_for_status()
