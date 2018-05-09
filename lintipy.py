@@ -251,6 +251,7 @@ class Handler:
             }
         }
         response = self.session.post(self.check_runs_url, json=data)
+        logger.debug(response.content.decode())
         response.raise_for_status()
         self.check_run_url = response.json()['url']
 
