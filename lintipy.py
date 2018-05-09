@@ -83,15 +83,15 @@ class Handler:
         self.create_check_run("Downloading code...")
         code_path = self.download_code()
         self.update_check_run(IN_PROGRESS, "Running linter...")
-        ru_time, code, target_url = self.run_process(code_path)
+        code, log = self.run_process(code_path)
 
         if code == 0:
             self.update_check_run(
-                COMPLETED, "%s succeeded in %ss" % (self.cmd, ru_time), SUCCESS
+                COMPLETED, "```\n%s\n```" % log, SUCCESS
             )
         else:
             self.update_check_run(
-                COMPLETED, "%s failed in %ss" % (self.cmd, ru_time), FAILURE
+                COMPLETED, "```\n%s\n```" % log, FAILURE
             )
 
     @property
@@ -211,7 +211,6 @@ class Handler:
                 'linter exited with status code %s in %ss' % (process.returncode, info.ru_utime)
             )
             return (
-                info.ru_utime,
                 process.returncode,
                 log
             )
