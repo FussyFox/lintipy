@@ -204,7 +204,7 @@ class Handler:
             raise
         else:
             info = resource.getrusage(resource.RUSAGE_CHILDREN)
-            log = process.stdout
+            log = process.stdout.decode()
             logger.debug(log)
             logger.debug('exit %s', process.returncode)
             logger.info(
