@@ -1,4 +1,5 @@
 """Run static file linters on AWS lambda."""
+import datetime
 import json
 import logging
 import os
@@ -8,9 +9,7 @@ import tarfile
 import tempfile
 import time
 from io import BytesIO
-from urllib.parse import urlencode
 
-import boto3
 import jwt
 from botocore.vendored import requests
 
@@ -19,29 +18,35 @@ __all__ = ('Handler', 'logger')
 logger = logging.getLogger('lintipy')
 
 
-PUSH_EVENT = 'push'
-PULL_REQUEST_EVENT = 'pull_request'
+QUEUED = 'queued'
+IN_PROGRESS = 'in_progress'
+COMPLETED = 'completed'
 
-
-ERROR = 'error'
-FAILURE = 'failure'
-PENDING = 'pending'
-SUCCESS = 'success'
-
-STATUS_STATES = {ERROR, FAILURE, PENDING, SUCCESS}
+STATUS_STATES = {QUEUED, IN_PROGRESS, COMPLETED}
 """
-Accepted states for GitHub's status API.
+Accepted statuses for GitHub's check suite API.
 
-.. seealso:: https://developer.github.com/v3/repos/statuses/#parameters
+.. seealso:: https://developer.github.com/v3/checks/runs/#parameters
+"""
+
+SUCCESS = 'success'
+FAILURE = 'failure'
+NEUTRAL = 'neutral'
+CANCELLED = 'cancelled'
+TIMED_OUT = 'timed_out'
+ACTION_REQUIRED = 'action_required'
+
+
+CONCLUSIONS = {SUCCESS, FAILURE, NEUTRAL, CANCELLED, TIMED_OUT, ACTION_REQUIRED}
+"""
+Accepted conclusions for GitHub's check suite API.
+
+.. seealso:: https://developer.github.com/v3/checks/runs/#parameters
 """
 
 
 class Handler:
     """Handle GitHub web hooks via SNS message."""
-
-    handle_pull_request_actions = [
-        'opened', 'edited', 'reopened', 'synchronize',
-    ]
 
     FAQ_URL = 'https://lambdalint.github.io/#faq'
 
@@ -56,6 +61,7 @@ class Handler:
         self._s3 = None
         self._session = None
         self.event = None
+        self.check_run_url = None
         self.integration_id = integration_id or os.environ.get('INTEGRATION_ID')
         self.bucket = bucket or os.environ.get('BUCKET', 'lambdalint')
         self.region = region or os.environ.get('REGION', 'eu-west-1')
@@ -68,35 +74,25 @@ class Handler:
     def __call__(self, event, context):
         """AWS Lambda function handler."""
         self.event = event
-        logger.info("Received %s event", self.event_type)
         logger.debug(event)
 
-        if not self.code_has_changed:
-            logger.info("Code has not changed, ignore event.")
+        if self.hook['action'] == 'completed':
+            logger.info("The suite has been completed, no action required.")
             return  # Do not execute linter.
 
-        self.set_status(PENDING, "Downloading code...")
+        self.create_check_run("Downloading code...")
         code_path = self.download_code()
-        self.set_status(PENDING, "Running linter...")
+        self.update_check_run(IN_PROGRESS, "Running linter...")
         ru_time, code, target_url = self.run_process(code_path)
 
         if code == 0:
-            self.set_status(SUCCESS,
-                            "%s succeeded in %ss" % (self.cmd, ru_time),
-                            self.get_log_url())
+            self.update_check_run(
+                COMPLETED, "%s succeeded in %ss" % (self.cmd, ru_time), SUCCESS
+            )
         else:
-            self.set_status(FAILURE, "%s failed in %ss" % (self.cmd, ru_time),
-                            self.get_log_url())
-
-    @property
-    def event_type(self):
-        return self.event['Records'][0]['Sns']['Subject']
-
-    @property
-    def s3(self):
-        if self._s3 is None:
-            self._s3 = boto3.client('s3', region_name=self.region)
-        return self._s3
+            self.update_check_run(
+                COMPLETED, "%s failed in %ss" % (self.cmd, ru_time), FAILURE
+            )
 
     @property
     def hook(self):
@@ -106,12 +102,16 @@ class Handler:
         return self._hook
 
     @property
-    def full_name(self):
-        return self.hook['repository']['full_name']
+    def head_branch(self):
+        return self.hook['check_suite']['head_branch']
 
     @property
-    def statuses_url(self):
-        return self.hook['repository']['statuses_url'].format(sha=self.sha)
+    def sha(self):
+        return self.hook['check_suite']['head_sha']
+
+    @property
+    def check_runs_url(self):
+        return self.hook['check_suite']['check_runs_url']
 
     @property
     def archive_url(self):
@@ -123,28 +123,6 @@ class Handler:
     @property
     def installation_id(self):
         return self.hook['installation']['id']
-
-    @property
-    def code_has_changed(self):
-        if self.event_type == PUSH_EVENT:
-            return True
-        elif self.event_type == PULL_REQUEST_EVENT:
-            return self.hook['action'] in self.handle_pull_request_actions
-
-    @property
-    def sha(self):
-        try:
-            return self.hook['pull_request']['head']['sha']
-        except KeyError:
-            # push on branch without pull-request
-            return self.hook['head_commit']['id']
-
-    def get_log_url(self):
-        return "https://lambdalint.github.io/gh/?%s" % urlencode({
-            'app': self.label,
-            'repo': self.full_name,
-            'ref': self.sha,
-        })
 
     @property
     def token(self):
@@ -200,18 +178,6 @@ class Handler:
         ])
         return env
 
-    def set_status(self, state, description, target_url=None):
-        if state not in STATUS_STATES:
-            raise ValueError("%r is not a valid state" % state)
-        data = {
-            'context': self.label,
-            'state': state,
-            'description': description,
-            'target_url': target_url,
-        }
-        logger.info("%s: %s", state, description)
-        self.session.post(self.statuses_url, json=data).raise_for_status()
-
     def run_process(self, code_path):
         """
         Run linter command as sub-processes.
@@ -229,29 +195,22 @@ class Handler:
                 timeout=self.cmd_timeout,
             )
         except subprocess.TimeoutExpired:
-            self.set_status(ERROR, 'Command timed out after %ss' % self.cmd_timeout, self.FAQ_URL)
+            self.update_check_run(
+                COMPLETED, 'Command timed out after %ss' % self.cmd_timeout, TIMED_OUT
+            )
             raise
         else:
             info = resource.getrusage(resource.RUSAGE_CHILDREN)
             log = process.stdout
             logger.debug(log)
             logger.debug('exit %s', process.returncode)
-            logger.info('Saving log to S3')
-            key = os.path.join(self.label, self.full_name, "%s.log" % self.sha)
-            self.s3.put_object(
-                ACL='public-read',
-                Bucket=self.bucket,
-                Key=key,
-                Body=log,
-                ContentType='text/plain'
-            )
             logger.info(
                 'linter exited with status code %s in %ss' % (process.returncode, info.ru_utime)
             )
             return (
                 info.ru_utime,
                 process.returncode,
-                "https://{0}.s3.amazonaws.com/{1}".format(self.bucket, key),
+                log
             )
 
     def download_code(self):
@@ -260,8 +219,10 @@ class Handler:
         try:
             response = self.session.get(self.archive_url, timeout=self.download_timeout)
         except requests.Timeout:
-            self.set_status(ERROR, 'Downloading code timed out after %ss' % self.download_timeout,
-                            self.FAQ_URL)
+            self.update_check_run(
+                COMPLETED, 'Downloading code timed out after %ss' % self.download_timeout,
+                TIMED_OUT
+            )
             raise
         else:
             response.raise_for_status()
@@ -273,3 +234,35 @@ class Handler:
                     fs.extractall(path)
                 folder = os.listdir(path)[0]
                 return os.path.join(path, folder)
+
+    def create_check_run(self, summary):
+        data = {
+            'name': self.label,
+            'head_branch': self.head_branch,
+            'head_sha': self.sha,
+            'status': IN_PROGRESS,
+            'started_at': datetime.datetime.utcnow().isoformat(),
+            'output': {
+                'title': self.label,
+                'summary': summary,
+            }
+        }
+        response = self.session.post(self.check_runs_url, json=data)
+        response.raise_for_status()
+        self.check_run_url = response.json()['url']
+
+    def update_check_run(self, status, summary, conclusion=None):
+        data = {
+            'name': self.label,
+            'status': status,
+            'output': {
+                'title': self.label,
+                'summary': summary,
+            }
+        }
+        if conclusion:
+            data['conclusion'] = conclusion
+        if status == COMPLETED:
+            data['completed_at'] = datetime.datetime.utcnow().isoformat()
+        response = self.session.patch(self.check_run_url, json=data)
+        response.raise_for_status()

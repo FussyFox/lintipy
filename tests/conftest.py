@@ -15,17 +15,12 @@ def sns():
         return json.load(f)
 
 
-def push_event():
-    with open(BASE_DIR / 'fixtures' / 'pushEvent.json') as f:
-        return 'push', f.read()
+def check_suite_event():
+    with open(BASE_DIR / 'fixtures' / 'checkSuiteEvent.json') as f:
+        return 'check_suite', f.read()
 
 
-def pull_request_event():
-    with open(BASE_DIR / 'fixtures' / 'pullRequestEvent.json') as f:
-        return 'pull_request', f.read()
-
-
-@pytest.fixture(params=[push_event, pull_request_event])
+@pytest.fixture(params=[check_suite_event])
 def handler(request, sns):
     hnd = Handler('zen of python', 'this', '1', '2', '3')
     subject, message = request.param()
