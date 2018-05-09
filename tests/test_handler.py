@@ -32,8 +32,8 @@ class TestHandler:
 
     def test_check_runs_url(self, handler):
         assert handler.check_runs_url == (
-            'https://api.github.com/repos/github/baxterthehacker/public-repo/'
-            '5/check-runs'
+            'https://api.github.com/repos/baxterthehacker/public-repo/'
+            'check-runs'
         )
 
     def test_session(self, handler):

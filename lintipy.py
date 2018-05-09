@@ -111,7 +111,9 @@ class Handler:
 
     @property
     def check_runs_url(self):
-        return self.hook['check_suite']['check_runs_url']
+        return "https://api.github.com/repos/{full_name}/check-runs".format(
+            full_name=self.hook['repository']['full_name']
+        )
 
     @property
     def archive_url(self):
