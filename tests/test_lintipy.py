@@ -1,19 +1,44 @@
 import json
 import logging
+import os
 import subprocess
+from pathlib import Path
 from unittest.mock import Mock
 
 import httpretty
 import pytest
 from botocore.vendored import requests
 
-from lintipy import Handler, TIMED_OUT
+from lintipy import CheckRun, TIMED_OUT
+
+BASE_DIR = Path(os.path.dirname(__file__))
 
 
-class TestHandler:
+def sns():
+    with open(BASE_DIR / 'fixtures' / 'sns.json') as f:
+        return json.load(f)
+
+
+def check_run_event():
+    with open(BASE_DIR / 'fixtures' / 'checkRunEvent.json') as f:
+        return 'check_run', f.read()
+
+
+class TestCheckRun:
+
+    @pytest.fixture()
+    def handler(self):
+        notice = sns()
+        hnd = CheckRun('zen of python', 'this', '1', '2', '3')
+        subject, message = check_run_event()
+        notice['Records'][0]['Sns']['Subject'] = subject
+        notice['Records'][0]['Sns']['Message'] = message
+        hnd.event = notice
+        hnd.hook = json.loads(message)
+        return hnd
 
     def test_init(self):
-        hnd = Handler('zen of python', 'this', '1', '2', '3')
+        hnd = CheckRun('zen of python', 'this', '1', '2', '3')
         assert hnd.label == 'zen of python'
         assert hnd.cmd == 'this'
         assert hnd.cmd_args == ('1', '2', '3')
@@ -30,12 +55,6 @@ class TestHandler:
             'tarball/0d1a26e67d8f5eaf1f6ba5c57fc3c7d91ac0fd1c'
         )
 
-    def test_check_runs_url(self, handler):
-        assert handler.check_runs_url == (
-            'https://api.github.com/repos/baxterthehacker/public-repo/'
-            'check-runs'
-        )
-
     def test_session(self, handler):
         handler._token = 123
         assert handler.session
@@ -48,15 +67,8 @@ class TestHandler:
 
     @httpretty.activate
     def test_call(self, handler, caplog):
-        check_run_url = 'http://api.github.com/check/3'
         httpretty.register_uri(
-            httpretty.POST, handler.check_runs_url,
-            body=json.dumps({'url': check_run_url}),
-            status=201,
-            content_type='application/json',
-        )
-        httpretty.register_uri(
-            httpretty.PATCH, check_run_url,
+            httpretty.PATCH, handler.check_run_url,
             data='',
             status=200,
             content_type='application/json',
@@ -72,22 +84,16 @@ class TestHandler:
             handler(handler.event, {})
         assert "linter exited with status code 1 in " in caplog.text
 
-        handler.hook['action'] = 'completed'
+        handler.hook['action'] = 'updated'
+        handler.event['Records'][0]['Sns']['Message'] = json.dumps(handler.hook)
         with caplog.at_level(logging.INFO, logger='lintipy'):
             handler(handler.event, {})
-        assert "The suite has been completed, no action required." in caplog.text
+        assert "No action required." in caplog.text
 
     @httpretty.activate
     def test_timeout(self, handler, caplog):
-        check_run_url = 'http://api.github.com/check/3'
         httpretty.register_uri(
-            httpretty.POST, handler.check_runs_url,
-            body=json.dumps({'url': check_run_url}),
-            status=201,
-            content_type='application/json',
-        )
-        httpretty.register_uri(
-            httpretty.PATCH, check_run_url,
+            httpretty.PATCH, handler.check_run_url,
             data='',
             status=200,
             content_type='application/json',
@@ -118,11 +124,12 @@ class TestHandler:
             data['status'] = status
             data['summary'] = summary
             data['conclusion'] = conclusion
+
         handler._session = requests.Session()
         handler._session.get = _timeout
         handler.download_timeout = float('1e-10')
         handler.update_check_run = update_check_run
         with pytest.raises(requests.Timeout):
-            handler.download_code()
+            handler(handler.event, {})
         assert data['conclusion'] == TIMED_OUT
         assert data['summary'] == 'Downloading code timed out after 1e-10s'

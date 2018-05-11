@@ -1,0 +1,10 @@
+GitHub->suite:EVENT check_suite
+suite->suite:PARSE .check_suite.yml
+suite->GitHub:POST /repos/:owner/:repo/check-runs
+suite->GitHub:POST /repos/:owner/:repo/check-runs
+GitHub->pylint:EVENT check_run
+GitHub->eslint:EVENT check_run
+pylint->pylint:RUN command
+pylint->GitHub:POST /repos/:owner/:repo/check-runs
+eslint->eslint:RUN command
+eslint->GitHub:POST /repos/:owner/:repo/check-runs
