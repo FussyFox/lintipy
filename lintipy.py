@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import resource
-import subprocess
+import subprocess  # nosec
 import tarfile
 import tempfile
 import time
