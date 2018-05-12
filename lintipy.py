@@ -154,6 +154,9 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
     def __call__(self, event, context):
         """AWS Lambda function handler."""
         super().__call__(event, context)
+        if self.hook['check_run']['name'] != self.label:
+            logger.info("Not this check, no action required.")
+            return  # Do not execute linter.
         if self.hook['action'] not in [self.CREATED, self.REREQUESTED]:
             logger.info("No action required.")
             return  # Do not execute linter.
