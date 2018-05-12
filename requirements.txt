@@ -2,4 +2,3 @@
 # boto3
 cryptography
 PyJWT
-requests
