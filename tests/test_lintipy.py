@@ -3,7 +3,6 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from unittest.mock import Mock
 
 import httpretty
 import pytest
@@ -35,6 +34,7 @@ class TestCheckRun:
         notice['Records'][0]['Sns']['Message'] = message
         hnd.event = notice
         hnd.hook = json.loads(message)
+        hnd._session = requests.Session()
         return hnd
 
     def test_init(self):
@@ -56,13 +56,13 @@ class TestCheckRun:
         )
 
     def test_session(self, handler):
+        handler._session = None
         handler._token = 123
         assert handler.session
         assert 'Authorization' in handler.session.headers
         assert handler.session.headers['Authorization'] == 'token 123'
 
     def test_full_name(self, handler):
-        handler._session = requests.Session()
         assert handler.download_code()
 
     @httpretty.activate
@@ -73,7 +73,6 @@ class TestCheckRun:
             status=200,
             content_type='application/json',
         )
-        handler._session = requests.Session()
         handler.download_code = lambda: '.'
         with caplog.at_level(logging.INFO, logger='lintipy'):
             handler(handler.event, {})
@@ -101,7 +100,6 @@ class TestCheckRun:
         handler.cmd = 'tests.timeout'
         handler.cmd_timeout = 1
         handler._session = requests.Session()
-        handler._s3 = Mock()
         handler.download_code = lambda: '.'
         with pytest.raises(subprocess.TimeoutExpired) as e:
             handler(handler.event, {})
@@ -111,7 +109,6 @@ class TestCheckRun:
         assert handler.installation_id == 234
 
     def test_download_code(self, handler):
-        handler._session = requests.Session()
         assert handler.download_code()
 
     def test_download_code_timeout(self, handler):
@@ -125,7 +122,6 @@ class TestCheckRun:
             data['summary'] = summary
             data['conclusion'] = conclusion
 
-        handler._session = requests.Session()
         handler._session.get = _timeout
         handler.download_timeout = float('1e-10')
         handler.update_check_run = update_check_run
