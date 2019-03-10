@@ -37,6 +37,14 @@ class TestCheckRun:
         hnd._session = requests.Session()
         return hnd
 
+    def test_as_handler(self, handler):
+        hdl = CheckRun.as_handler('zen of python', 'this', '1', '2', '3')
+        assert callable(hdl)
+        assert hdl.__name__ == 'CheckRun'
+
+        with pytest.raises(ValueError):
+            hdl(handler.event, {})
+
     def test_init(self):
         hnd = CheckRun('zen of python', 'this', '1', '2', '3')
         assert hnd.label == 'zen of python'

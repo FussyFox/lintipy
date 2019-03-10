@@ -1,5 +1,6 @@
 """AWS Lambda handlers for GitHub events wrapped in SNS messages."""
 import datetime
+import functools
 import io
 import json
 import logging
@@ -45,6 +46,14 @@ class GitHubEvent:
         self.context = context
         self.hook = json.loads(self.event['Records'][0]['Sns']['Message'])
         logger.debug(self.hook)
+
+    @classmethod
+    def as_handler(cls, *init_args, **init_kwargs):
+        @functools.wraps(cls)
+        def wrapper(*args, **kwargs):
+            return cls(*init_args, **init_kwargs)(*args, **kwargs)
+
+        return wrapper
 
     @property
     def installation_id(self):
