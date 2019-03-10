@@ -21,8 +21,7 @@ Note that the check suite does not interact directly with the check runs nor via
 ```python
 from lintipy import CheckRun
 
-def handle(*args, **kwargs):
-    return CheckRun('PEP8', 'pycodestyle', '.')(*args, **kwargs)
+handle = CheckRun.as_handler('PEP8', 'pycodestyle', '.')
 ```
 
 ## See also:
