@@ -147,3 +147,9 @@ class TestCheckRun:
     def test_get_cmd_version__none(self, handler):
         handler.version_arg = None
         assert handler.get_cmd_version() == ''
+
+    def test_get_cmd_version__exception(self, handler):
+        handler.cmd = 'does_not_exist'
+        handler.update_check_run = lambda *args, **kwargs: None
+        with pytest.raises(subprocess.CalledProcessError):
+            handler.get_cmd_version()
