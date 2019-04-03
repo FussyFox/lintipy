@@ -240,7 +240,7 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
         logger.info('Running: %s', cmd)
         log = "$ %s\n" % cmd
         try:
-            log += subprocess.check_output(
+            log += subprocess.check_output(  # nosec
                 ('python', '-m', self.cmd, self.version_arg),
                 stderr=subprocess.STDOUT,
                 env=self.get_env(),
@@ -264,7 +264,7 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
         logger.info('Running: %s', cmd)
         log = "$ %s\n" % cmd
         try:
-            process = subprocess.run(
+            process = subprocess.run(  # nosec
                 ('python', '-m', self.cmd) + self.cmd_args,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 cwd=code_path, env=self.get_env(),
