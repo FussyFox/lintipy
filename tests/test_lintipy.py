@@ -86,7 +86,7 @@ class TestCheckRun:
             handler(handler.event, {})
         assert "linter exited with status code 0 in " in caplog.text
 
-        handler.cmd = 'doesnotexit'
+        handler.cmd = 'tests.exit1'
         with caplog.at_level(logging.INFO, logger='lintipy'):
             handler(handler.event, {})
         assert "linter exited with status code 1 in " in caplog.text
@@ -137,3 +137,19 @@ class TestCheckRun:
             handler(handler.event, {})
         assert data['conclusion'] == TIMED_OUT
         assert data['summary'] == 'Downloading code timed out after 1e-10s'
+
+    def test_get_cmd_version(self, handler):
+        handler.cmd = 'pytest'
+        version_log = handler.get_cmd_version()
+        assert '$ python -m pytest --version' in version_log
+        assert 'This is pytest version' in version_log
+
+    def test_get_cmd_version__none(self, handler):
+        handler.version_arg = None
+        assert handler.get_cmd_version() == ''
+
+    def test_get_cmd_version__exception(self, handler):
+        handler.cmd = 'does_not_exist'
+        handler.update_check_run = lambda *args, **kwargs: None
+        with pytest.raises(subprocess.CalledProcessError):
+            handler.get_cmd_version()

@@ -153,12 +153,13 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
     cmd_timeout = 200
 
     def __init__(self, label: str, cmd: str, *cmd_args: str,
-                 cmd_timeout=200, **kwargs):
+                 cmd_timeout=200, version_arg='--version', **kwargs):
         super().__init__(**kwargs)
         self.label = label
         self.cmd = cmd
         self.cmd_args = cmd_args
         self.cmd_timeout = cmd_timeout
+        self.version_arg = version_arg
 
     def __call__(self, event, context):
         """AWS Lambda function handler."""
@@ -181,15 +182,18 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
             )
             raise
         self.update_check_run(IN_PROGRESS, "Running linter...")
+        version = self.get_cmd_version()
         code, log = self.run_process(code_path)
+
+        output = "```\n%s\n%s\n```" % (version, log)
 
         if code == 0:
             self.update_check_run(
-                COMPLETED, "```\n%s\n```" % log, SUCCESS
+                COMPLETED, output, SUCCESS
             )
         else:
             self.update_check_run(
-                COMPLETED, "```\n%s\n```" % log, FAILURE
+                COMPLETED, output, FAILURE
             )
 
     @property
@@ -222,6 +226,32 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
         ])
         return env
 
+    def get_cmd_version(self):
+        """
+        Run linter --version command as part of the user feedback.
+
+        Returns:
+            str: Stdout from linter --version
+
+        """
+        if self.version_arg is None:
+            return ''
+        cmd = ' '.join(('python', '-m', self.cmd, self.version_arg))
+        logger.info('Running: %s', cmd)
+        log = "$ %s\n" % cmd
+        try:
+            log += subprocess.check_output(  # nosec
+                ('python', '-m', self.cmd, self.version_arg),
+                stderr=subprocess.STDOUT,
+                env=self.get_env(),
+            ).decode()
+        except subprocess.CalledProcessError:
+            self.update_check_run(
+                COMPLETED, 'Version command failed unexpectedly %ss' % self.cmd_timeout, FAILURE
+            )
+            raise
+        return log
+
     def run_process(self, code_path):
         """
         Run linter command as sub-processes.
@@ -230,9 +260,11 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
             tuple[int, str]: Tuple containing exit code and URI to log file.
 
         """
-        logger.info('Running: %s %s', self.cmd, ' '.join(self.cmd_args))
+        cmd = ' '.join(('python', '-m', self.cmd) + self.cmd_args)
+        logger.info('Running: %s', cmd)
+        log = "$ %s\n" % cmd
         try:
-            process = subprocess.run(
+            process = subprocess.run(  # nosec
                 ('python', '-m', self.cmd) + self.cmd_args,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 cwd=code_path, env=self.get_env(),
@@ -245,7 +277,7 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
             raise
         else:
             info = resource.getrusage(resource.RUSAGE_CHILDREN)
-            log = process.stdout.decode()
+            log += process.stdout.decode()
             logger.debug(log)
             logger.debug('exit %s', process.returncode)
             logger.info(
