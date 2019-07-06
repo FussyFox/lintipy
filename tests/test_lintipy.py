@@ -8,7 +8,7 @@ import httpretty
 import pytest
 from botocore.vendored import requests
 
-from lintipy import CheckRun, TIMED_OUT
+from lintipy import CheckRun, TIMED_OUT, FAILURE
 
 BASE_DIR = Path(os.path.dirname(__file__))
 
@@ -111,7 +111,7 @@ class TestCheckRun:
         handler.download_code = lambda: '.'
         with pytest.raises(subprocess.TimeoutExpired) as e:
             handler(handler.event, {})
-        assert "timed out after 1 seconds" in str(e)
+        assert "timed out after 1 seconds" in str(e.value)
 
     def test_installation_id(self, handler):
         assert handler.installation_id == 234
@@ -137,6 +137,29 @@ class TestCheckRun:
             handler(handler.event, {})
         assert data['conclusion'] == TIMED_OUT
         assert data['summary'] == 'Downloading code timed out after 1e-10s'
+
+    def test_summary_cut(self, handler):
+        httpretty.register_uri(
+            httpretty.PATCH, handler.check_run_url,
+            data='',
+            status=200,
+            content_type='application/json',
+        )
+
+
+        data = {}
+
+        def update_check_run(status, summary, conclusion=None):
+            data['status'] = status
+            data['summary'] = summary
+            data['conclusion'] = conclusion
+
+        handler.update_check_run = update_check_run
+        handler.download_code = lambda: '.'
+        handler.run_process = lambda x: (1, str(list(range(9999))))
+        handler(handler.event, {})
+        assert data['conclusion'] == FAILURE
+        assert data['summary'][9889:] == '\nFull output truncated. Please run locally see full output.\n```'
 
     def test_get_cmd_version(self, handler):
         handler.cmd = 'pytest'
