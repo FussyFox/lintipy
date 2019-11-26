@@ -7,8 +7,7 @@ from pathlib import Path
 import httpretty
 import pytest
 import requests
-
-from lintipy import CheckRun, TIMED_OUT, FAILURE
+from lintipy import FAILURE, TIMED_OUT, CheckRun
 
 BASE_DIR = Path(os.path.dirname(__file__))
 
@@ -146,7 +145,6 @@ class TestCheckRun:
             content_type='application/json',
         )
 
-
         data = {}
 
         def update_check_run(status, summary, conclusion=None):
@@ -159,7 +157,9 @@ class TestCheckRun:
         handler.run_process = lambda x: (1, str(list(range(9999))))
         handler(handler.event, {})
         assert data['conclusion'] == FAILURE
-        assert data['summary'][9889:] == '\nFull output truncated. Please run locally see full output.\n```'
+        assert data['summary'][9889:] == (
+            '\nFull output truncated. Please run locally see full output.\n```'
+        )
 
     def test_get_cmd_version(self, handler):
         handler.cmd = 'pytest'
