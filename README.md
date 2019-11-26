@@ -26,4 +26,4 @@ handle = CheckRun.as_handler('PEP8', 'pycodestyle', '.')
 
 ## See also:
 
-This package is used on [Lambda Lint](https://lambdalint.github.io)
+This package is used on [FussyFox](https://fussyfox.github.io)
