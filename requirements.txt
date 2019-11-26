@@ -1,5 +1,0 @@
-## boto is pre-installed on aws lambda
-# boto3
-cryptography
-PyJWT
-requests

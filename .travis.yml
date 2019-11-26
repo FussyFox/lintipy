@@ -1,14 +1,13 @@
 language: python
 sudo: false
 python:
-- '3.6'
+- '3.7'
 cache:
 - pip
 install:
-- pip install -U codecov
-- pip install -r requirements-dev.txt
+- pip install -U codecov pip
 script:
-- coverage run --source lintipy -m pytest
+- python setup.py test
 after_success:
 - codecov
 deploy:
