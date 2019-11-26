@@ -1,4 +1,4 @@
-- pycodestyle
-- pydocstyle
-- pyflakes
 - bandit
+- flake8
+- isort
+- pydocstyle

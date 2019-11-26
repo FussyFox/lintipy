@@ -186,7 +186,10 @@ class CheckRun(DownloadCodeMixin, GitHubEvent):
         code, log = self.run_process(code_path)
 
         if len(log) > 9000:
-            output = "```\n%s\n%s\nFull output truncated. Please run locally see full output.\n```" % (
+            output = (
+                        "```\n%s\n%s\nFull output truncated."
+                        " Please run locally see full output.\n```"
+                     ) % (
                 version, log[:9000]
             )
         else:

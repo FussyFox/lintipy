@@ -1,6 +1,5 @@
 import sys
 
-
 if __name__ == '__main__':
     try:
         if sys.argv[1] == '--version':
