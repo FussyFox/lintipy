@@ -6,7 +6,7 @@ from pathlib import Path
 
 import httpretty
 import pytest
-from botocore.vendored import requests
+import requests
 
 from lintipy import CheckRun, TIMED_OUT, FAILURE
 

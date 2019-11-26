@@ -12,7 +12,7 @@ import tempfile
 import time
 
 import jwt
-from botocore.vendored import requests
+import requests
 
 logger = logging.getLogger('lintipy')
 
