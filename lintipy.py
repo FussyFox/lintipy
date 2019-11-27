@@ -45,6 +45,8 @@ class GitHubEvent:
         self.event = event
         self.context = context
         self.hook = json.loads(self.event['Records'][0]['Sns']['Message'])
+        self.event_type = self.event['Records'][0]['Sns']['Subject']
+        logger.info('Received %s event', self.event_type)
         logger.debug(self.hook)
 
     @classmethod

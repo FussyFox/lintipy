@@ -32,6 +32,7 @@ class TestCheckRun:
         notice['Records'][0]['Sns']['Subject'] = subject
         notice['Records'][0]['Sns']['Message'] = message
         hnd.event = notice
+        hnd.event_type = subject
         hnd.hook = json.loads(message)
         hnd._session = requests.Session()
         return hnd
@@ -81,9 +82,12 @@ class TestCheckRun:
             content_type='application/json',
         )
         handler.download_code = lambda: '.'
+        handler.event_type = None
         with caplog.at_level(logging.INFO, logger='lintipy'):
             handler(handler.event, {})
         assert "linter exited with status code 0 in " in caplog.text
+        assert "Received check_run event" in caplog.text
+        assert handler.event_type == 'check_run'
 
         handler.cmd = 'tests.exit1'
         with caplog.at_level(logging.INFO, logger='lintipy'):
