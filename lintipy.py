@@ -7,6 +7,7 @@ import logging
 import os
 import resource
 import subprocess  # nosec
+import sys
 import tarfile
 import tempfile
 import time
@@ -51,6 +52,10 @@ class GitHubEvent:
 
     @classmethod
     def as_handler(cls, *init_args, **init_kwargs):
+        root_logger = logging.getLogger('')
+        root_logger.setLevel(getattr(logging, os.getenv('LOG_LEVEL', 'INFO')))
+        root_logger.addHandler(logging.StreamHandler(sys.stdout))
+
         @functools.wraps(cls)
         def wrapper(*args, **kwargs):
             return cls(*init_args, **init_kwargs)(*args, **kwargs)
