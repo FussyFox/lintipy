@@ -1,0 +1,21 @@
+name: CI
+on: [pull_request]
+
+jobs:
+
+  PyTest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+    steps:
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python3 -m pip install -U pip setuptools codecov
+      - uses: actions/checkout@v2
+      - run: python3 setup.py test
+      - run: codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
