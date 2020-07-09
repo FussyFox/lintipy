@@ -7,6 +7,7 @@ from pathlib import Path
 import httpretty
 import pytest
 import requests
+
 from lintipy import FAILURE, TIMED_OUT, CheckRun
 
 BASE_DIR = Path(os.path.dirname(__file__))
