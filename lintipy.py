@@ -86,7 +86,7 @@ class GitHubEvent:
                 'Authorization': 'Bearer %s' % bearer.decode(encoding='UTF-8')
             }
             url = (
-                    'https://api.github.com/installations/'
+                    'https://api.github.com/app/installations/'
                     '%s/access_tokens' % self.installation_id
             )
             logger.info('requesting new token')
