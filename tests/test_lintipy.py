@@ -167,10 +167,10 @@ class TestCheckRun:
         )
 
     def test_get_cmd_version(self, handler):
-        handler.cmd = 'pytest'
+        handler.cmd = 'pip'
         version_log = handler.get_cmd_version()
-        assert '$ python -m pytest --version' in version_log
-        assert 'This is pytest version' in version_log
+        assert '$ python -m pip --version' in version_log
+        assert 'pip' in version_log
 
     def test_get_cmd_version__none(self, handler):
         handler.version_arg = None
