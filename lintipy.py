@@ -83,7 +83,7 @@ class GitHubEvent:
             bearer = jwt.encode(payload, self.pem, algorithm='RS256')
             headers = {
                 'Accept': 'application/vnd.github.machine-man-preview+json',
-                'Authorization': 'Bearer %s' % bearer.decode(encoding='UTF-8')
+                'Authorization': 'Bearer %s' % bearer
             }
             url = (
                     'https://api.github.com/app/installations/'
